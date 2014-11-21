@@ -34,11 +34,15 @@
             this.BtnGetVideoUrl = new System.Windows.Forms.Button();
             this.txtVideoTitle = new System.Windows.Forms.Label();
             this.BtnAuto = new System.Windows.Forms.Button();
+            this.backgroundWorker1 = new System.ComponentModel.BackgroundWorker();
+            this.progressBarDownload = new System.Windows.Forms.ProgressBar();
+            this.lblProgress = new System.Windows.Forms.Label();
+            this.BtnControl = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
             // BtnDownload
             // 
-            this.BtnDownload.Location = new System.Drawing.Point(361, 219);
+            this.BtnDownload.Location = new System.Drawing.Point(191, 219);
             this.BtnDownload.Name = "BtnDownload";
             this.BtnDownload.Size = new System.Drawing.Size(95, 23);
             this.BtnDownload.TabIndex = 0;
@@ -48,14 +52,14 @@
             // 
             // TxtVideoUrl
             // 
-            this.TxtVideoUrl.Location = new System.Drawing.Point(130, 12);
+            this.TxtVideoUrl.Location = new System.Drawing.Point(28, 12);
             this.TxtVideoUrl.Name = "TxtVideoUrl";
             this.TxtVideoUrl.Size = new System.Drawing.Size(418, 21);
             this.TxtVideoUrl.TabIndex = 1;
             // 
             // TxtResult
             // 
-            this.TxtResult.Location = new System.Drawing.Point(130, 66);
+            this.TxtResult.Location = new System.Drawing.Point(28, 66);
             this.TxtResult.Name = "TxtResult";
             this.TxtResult.ScrollBars = System.Windows.Forms.RichTextBoxScrollBars.Vertical;
             this.TxtResult.Size = new System.Drawing.Size(418, 147);
@@ -64,7 +68,7 @@
             // 
             // BtnGetVideoUrl
             // 
-            this.BtnGetVideoUrl.Location = new System.Drawing.Point(179, 219);
+            this.BtnGetVideoUrl.Location = new System.Drawing.Point(28, 219);
             this.BtnGetVideoUrl.Name = "BtnGetVideoUrl";
             this.BtnGetVideoUrl.Size = new System.Drawing.Size(143, 23);
             this.BtnGetVideoUrl.TabIndex = 3;
@@ -75,7 +79,7 @@
             // txtVideoTitle
             // 
             this.txtVideoTitle.AutoSize = true;
-            this.txtVideoTitle.Location = new System.Drawing.Point(133, 45);
+            this.txtVideoTitle.Location = new System.Drawing.Point(36, 51);
             this.txtVideoTitle.Name = "txtVideoTitle";
             this.txtVideoTitle.Size = new System.Drawing.Size(53, 12);
             this.txtVideoTitle.TabIndex = 4;
@@ -83,7 +87,7 @@
             // 
             // BtnAuto
             // 
-            this.BtnAuto.Location = new System.Drawing.Point(32, 219);
+            this.BtnAuto.Location = new System.Drawing.Point(485, 10);
             this.BtnAuto.Name = "BtnAuto";
             this.BtnAuto.Size = new System.Drawing.Size(75, 23);
             this.BtnAuto.TabIndex = 5;
@@ -91,11 +95,40 @@
             this.BtnAuto.UseVisualStyleBackColor = true;
             this.BtnAuto.Click += new System.EventHandler(this.BtnAuto_Click);
             // 
+            // progressBarDownload
+            // 
+            this.progressBarDownload.Location = new System.Drawing.Point(485, 66);
+            this.progressBarDownload.Name = "progressBarDownload";
+            this.progressBarDownload.Size = new System.Drawing.Size(394, 23);
+            this.progressBarDownload.TabIndex = 6;
+            // 
+            // lblProgress
+            // 
+            this.lblProgress.AutoSize = true;
+            this.lblProgress.ForeColor = System.Drawing.Color.Chocolate;
+            this.lblProgress.Location = new System.Drawing.Point(827, 107);
+            this.lblProgress.Name = "lblProgress";
+            this.lblProgress.Size = new System.Drawing.Size(0, 12);
+            this.lblProgress.TabIndex = 7;
+            // 
+            // BtnControl
+            // 
+            this.BtnControl.Location = new System.Drawing.Point(596, 9);
+            this.BtnControl.Name = "BtnControl";
+            this.BtnControl.Size = new System.Drawing.Size(75, 23);
+            this.BtnControl.TabIndex = 8;
+            this.BtnControl.Text = "暂停";
+            this.BtnControl.UseVisualStyleBackColor = true;
+            this.BtnControl.Click += new System.EventHandler(this.BtnControl_Click);
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(626, 260);
+            this.ClientSize = new System.Drawing.Size(927, 425);
+            this.Controls.Add(this.BtnControl);
+            this.Controls.Add(this.lblProgress);
+            this.Controls.Add(this.progressBarDownload);
             this.Controls.Add(this.BtnAuto);
             this.Controls.Add(this.txtVideoTitle);
             this.Controls.Add(this.BtnGetVideoUrl);
@@ -118,6 +151,10 @@
         private System.Windows.Forms.Button BtnGetVideoUrl;
         private System.Windows.Forms.Label txtVideoTitle;
         private System.Windows.Forms.Button BtnAuto;
+        private System.ComponentModel.BackgroundWorker backgroundWorker1;
+        private System.Windows.Forms.ProgressBar progressBarDownload;
+        private System.Windows.Forms.Label lblProgress;
+        private System.Windows.Forms.Button BtnControl;
     }
 }
 

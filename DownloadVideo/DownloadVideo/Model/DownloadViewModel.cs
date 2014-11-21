@@ -62,9 +62,17 @@ namespace DownloadVideo.Model {
         /// </summary>
         HasGetDownloadUrl = 5,
         /// <summary>
+        /// 准备下载
+        /// </summary>
+        PreDownload=7,
+        /// <summary>
         /// 下载中
         /// </summary>
-        Downloading = 7
+        Downloading =9,
+        /// <summary>
+        /// 下载完成
+        /// </summary>
+        Downloaded=11
     }
     /// <summary>
     /// 视频类目(频道)
@@ -83,4 +91,6 @@ namespace DownloadVideo.Model {
     public enum VideoSourceType {
         Youku = 1
     }
+
+   
 }

@@ -9,6 +9,10 @@ using System.Text.RegularExpressions;
 using System.Collections;
 using System.Collections.Generic;
 using DownloadVideo.Model;
+using System.ComponentModel;
+using System.Threading;
+using System.Linq;
+using System.Security.Policy;
 namespace DownloadVideo {
     public partial class Form1 : Form {
         public Form1() {
@@ -24,6 +28,10 @@ namespace DownloadVideo {
         private Dictionary<string, DownloadViewModel> _DownloadDic;
         private Dictionary<VideoSourceType, IList<UrlCategoryViewModel>> _DownloadSoureDic;
         private Dictionary<VideoSourceType, IList<Regex>> _RegexDic;
+        private List<string> _DownloadingUrlList; ///正在下载的视频
+        private Dictionary<string,BackgroundWorker> _BgWorkerDict; //后台线程列表
+        private Dictionary<string,ManualResetEvent> _ManualRestDict; //
+        private string _DownloadPath=string.Empty;
         #region 轮询程序 
         /// <summary>
         /// 初始化数据
@@ -45,6 +53,9 @@ namespace DownloadVideo {
                new Regex(@""">[\w\W]+"), //a标签中获取视频名称 1 如：<a>我是一只小小鸟</a>
                new Regex(@"href=""http://k.youku.com([\w\-\.,@?^=%&amp;:/~\+#]*[\w\-\@?^=%&amp;/~\+#])?"), //获取视频下载链接
             });
+            //初始化多任务列表集合
+            _BgWorkerDict = new Dictionary<string, BackgroundWorker>();
+            _ManualRestDict = new Dictionary<string,ManualResetEvent>();
         }
         
         #endregion
@@ -128,6 +139,7 @@ namespace DownloadVideo {
                         foreach (var item in mc) {
                             string downloadurl = item.ToString().Replace(@"href=""", "");
                             model.UrlDownloadList.Add(downloadurl);
+                            model.Status = DownloadStatus.PreDownload;
                         }
                     }
 
@@ -137,49 +149,161 @@ namespace DownloadVideo {
         #endregion
         #region 3、下载视频
         public void DownloadVideo() {
-            string today = DateTime.Now.Year + "-" + DateTime.Now.Month + "-" + DateTime.Now.Day;
-            string path = @"E:\VideoDownload\" + today;
-            if (!Directory.Exists(path)) {
-                Directory.CreateDirectory(path);
+            //清空多线程任务列表数据
+            //_BgWorkerDict.Clear();
+            //_ManualRestDict.Clear();
+            //转为后台多线程任务
+            this.Invoke((MethodInvoker)delegate{
+                int hasDownloadCount = (from u in _DownloadDic
+                                        where u.Value.Status == DownloadStatus.Downloaded
+                                        select u).Count();
+                this.progressBarDownload.Maximum = _DownloadDic.Count;
+                this.progressBarDownload.Value = hasDownloadCount;
+                this.lblProgress.Text = hasDownloadCount + "/" + _DownloadDic.Count;
+            });
+            while (_BgWorkerDict.Count <= 5) {
+                var model = (from u in _DownloadDic
+                            let down = u.Value.Status
+                            where down == DownloadStatus.PreDownload
+                            select u.Value).First();
+                if (model != null) {
+                    if (_BgWorkerDict.ContainsKey(model.Title)) {
+                        continue;
+                    }
+                    //创建多线程下载任务
+                    BackgroundWorker bg = new BackgroundWorker();
+                    bg.DoWork += bg_DoWork;
+                    bg.RunWorkerCompleted += (sender, e) => {
+                        bg_RunWorkerCompleted(sender, e, model.Title);
+                    };
+                    bg.WorkerSupportsCancellation = true;
+                    _BgWorkerDict.Add(model.Title, bg);
+                    
+                    model.Status = DownloadStatus.Downloading;
+                    ManualResetEvent mre = new ManualResetEvent(true);
+                    _ManualRestDict.Add(model.Title, mre);
+                    bg.RunWorkerAsync(model);
+                }
+                else {
+                    break;
+                }
+
             }
-            foreach (var download in _DownloadDic) {
-                
-                var model = download.Value;
-                if (model == null) continue;
-                if (model.UrlDownloadList.Count == 1) {
+        }
+
+        void bg_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e,string key) {
+            var bg = sender as BackgroundWorker;
+            if (_BgWorkerDict.ContainsKey(key)) {
+                _BgWorkerDict.Remove(key);
+            }
+            if (_DownloadDic.ContainsKey(key)) {
+                var model = _DownloadDic[key];
+                model.Status = DownloadStatus.Downloaded;
+            }
+            int surplusCount = (from u in _DownloadDic
+                               where u.Value.Status == DownloadStatus.PreDownload
+                               select u.Key).Count();
+            if (surplusCount > 0) {
+                DownloadVideo();
+            }
+        }
+
+        void bg_DoWork(object sender, DoWorkEventArgs e) {
+            var model=e.Argument as DownloadViewModel;
+            if(model==null) return;
+            if (model.UrlDownloadList.Count == 1) {
+                using (var client = new WebClient()) {
+                    string file = string.Format(@"{0}\{1}.flv", _DownloadPath, model.Title);
+                    //client.DownloadFileAsync(new Uri(model.UrlDownloadList[0]), file);
+                    //client.DownloadDataCompleted += client_DownloadFileCompleted;
+                   
+                    client.DownloadFile(new Uri(model.UrlDownloadList[0]), file);
+                }
+            }
+            else if (model.UrlDownloadList.Count > 1) {
+                string multifilePath = _DownloadPath + "\\" + model.Title;
+                if (!Directory.Exists(multifilePath)) {
+                    Directory.CreateDirectory(multifilePath);
+                }
+                for (int i = 0; i < model.UrlDownloadList.Count; i++) {
                     using (var client = new WebClient()) {
-                        string file = string.Format(@"{0}\{1}.flv",path, model.Title);
-                        client.DownloadFileAsync(new Uri(model.UrlDownloadList[0]), file);
+                        string file = string.Format(@"{0}\{1}.flv", multifilePath, model.Title + "_" + i);
+                        //client.DownloadFileAsync(new Uri(model.UrlDownloadList[0]), file);
+                        //client.DownloadDataCompleted += client_DownloadFileCompleted;
+                        client.DownloadFile(new Uri(model.UrlDownloadList[0]), file);
                     }
                 }
-                else if (model.UrlDownloadList.Count > 1) {
-                   string  multifilePath = path+"\\"+model.Title;
-                   if (!Directory.Exists(multifilePath)) {
-                       Directory.CreateDirectory(multifilePath);
-                   }
-                   for (int i = 0; i < model.UrlDownloadList.Count; i++) {
-                       using (var client = new WebClient()) {
-                           string file = string.Format(@"{0}\{1}.flv", multifilePath, model.Title + "_" + i);
-                           client.DownloadFileAsync(new Uri(model.UrlDownloadList[i]), file);
-                           client.DownloadFileCompleted += client_DownloadFileCompleted;
-                       }
-                   }
-                  
-                }
+
             }
-           
-        
         }
 
         void client_DownloadFileCompleted(object sender, System.ComponentModel.AsyncCompletedEventArgs e) {
+            
+            if (e.Cancelled) { 
+            
+            }
             if (e.Error != null) { 
             
             } 
+            
+           
             
         }
 
         
         #endregion
+
+
+        private void Form1_Load(object sender, EventArgs e) {
+
+        }
+
+        private void BtnAuto_Click(object sender, EventArgs e) {
+            CreateDownloadDirectory();
+            GetVideoList();
+            Task t =  ConvertToVideoUrl();
+            t.ContinueWith((task) => {
+                if (task.Status == TaskStatus.RanToCompletion) {
+                    DownloadVideo();
+                }
+            });
+        }
+        /// <summary>
+        /// 创建下载路径
+        /// </summary>
+        private void CreateDownloadDirectory() {
+            string today = DateTime.Now.Year + "-" + DateTime.Now.Month + "-" + DateTime.Now.Day;
+            _DownloadPath = @"E:\VideoDownload\" + today;
+            if (!Directory.Exists(_DownloadPath)) {
+                Directory.CreateDirectory(_DownloadPath);
+            }
+        }
+       
+        /// <summary>
+        /// 控制暂停结束
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void BtnControl_Click(object sender, EventArgs e) {
+            Button b=sender as Button;
+            if (b.Text == "暂停") {
+                b.Text = "继续";
+                foreach(var item in _ManualRestDict){
+                  ManualResetEvent m = item.Value as ManualResetEvent;
+                  m.Reset();
+                }
+            }
+            if (b.Text == "继续") {
+                b.Text = "暂停";
+                foreach (var item in _ManualRestDict) {
+                    ManualResetEvent m = item.Value as ManualResetEvent;
+                    m.Set();
+                }
+            }
+        }
+
+
+        #region 单个视频下载
 
         private async void BtnGetVideoUrl_Click(object sender, EventArgs e) {
             string url = "http://www.flvcd.com/parse.php?format=&kw={0}";
@@ -229,27 +353,12 @@ namespace DownloadVideo {
                     if (!Directory.Exists(@"E:\VideoDownload")) {
                         Directory.CreateDirectory(@"E:\VideoDownload");
                     }
-                    string file = string.Format(@"E:\VideoDownload\{0}.flv", "tmp"+i);
+                    string file = string.Format(@"E:\VideoDownload\{0}.flv", "tmp" + i);
                     client.DownloadFileAsync(new Uri(url), file);
                 }
             }
         }
-
-        private void Form1_Load(object sender, EventArgs e) {
-
-        }
-
-        private void BtnAuto_Click(object sender, EventArgs e) {
-            GetVideoList();
-            Task t =  ConvertToVideoUrl();
-            t.ContinueWith((task) => {
-                if (task.Status == TaskStatus.RanToCompletion) {
-                    DownloadVideo();
-                }
-            });
-        }
-
-
+        #endregion
 
     }
 }
