@@ -13,6 +13,8 @@ using System.ComponentModel;
 using System.Threading;
 using System.Linq;
 using System.Security.Policy;
+using Newtonsoft.Json;
+using System.Timers;
 namespace DownloadVideo {
     public partial class Form1 : Form {
         public Form1() {
@@ -25,37 +27,80 @@ namespace DownloadVideo {
         /// <summary>
         /// 下载列表
         /// </summary>
-        private Dictionary<string, DownloadViewModel> _DownloadDic;
-        private Dictionary<VideoSourceType, IList<UrlCategoryViewModel>> _DownloadSoureDic;
-        private Dictionary<VideoSourceType, IList<Regex>> _RegexDic;
-        private List<string> _DownloadingUrlList; ///正在下载的视频
+        private Dictionary<string, DownloadViewModel> _DownloadDic; //下载视频列表
+        private Dictionary<VideoSourceType, IList<UrlCategoryViewModel>> _DownloadSoureDic; //视频下载来源
+        private Dictionary<string, DownloadViewModel> _AllDownloadDic; //所有已下载保存到downloadvideos.json的视频列表
+        private Dictionary<VideoSourceType, IList<Regex>> _RegexDic; //正则集合
         private Dictionary<string,BackgroundWorker> _BgWorkerDict; //后台线程列表
-        private Dictionary<string,ManualResetEvent> _ManualRestDict; //
+        private Dictionary<string,ManualResetEvent> _ManualRestDict; //取消后台线程任务列表
         private string _DownloadPath=string.Empty;
+        private System.Timers.Timer t = new System.Timers.Timer(43200000); //12h执行一次4320000
+        private bool IsAutoDownload;
         #region 轮询程序 
         /// <summary>
         /// 初始化数据
         /// </summary>
         public void InitData() { 
           //
-            _DownloadDic = new Dictionary<string, DownloadViewModel>();
-            _DownloadSoureDic = new Dictionary<VideoSourceType, IList<UrlCategoryViewModel>>();
-            //添加优酷视频下载地址
-            _DownloadSoureDic.Add(VideoSourceType.Youku, new List<UrlCategoryViewModel> {
-                new UrlCategoryViewModel{ Category=CategoryType.fun, UrlCategory="http://fun.youku.com/" },
-                new UrlCategoryViewModel{ Category=CategoryType.fun, UrlCategory="http://dv.youku.com/" }
-            });
-            _RegexDic = new Dictionary<VideoSourceType, IList<Regex>>();
-            _RegexDic.Add(VideoSourceType.Youku, new List<Regex>() {
-               new Regex(@"<a[^>]*href=[""']http://v.youku.com(?<url>[^""']*?)[""'][^>]*></a>"),//获取优酷页面中视频链接 1
-               new Regex(@"<a[^>]*href=[""']http://v.youku.com(?<url>[^""']*?)[""'][^>]*>[\w][^<][^\b&nbsp;]+</a>"),//获取优酷页面中视频链接 2
-               new Regex(@"http://([\w\-\.,@?^=%&amp;:/~\+#]*[\w\-\.,@?^=%&amp;:/~\+#])?"), //a标签中的获取url
-               new Regex(@""">[\w\W]+"), //a标签中获取视频名称 1 如：<a>我是一只小小鸟</a>
-               new Regex(@"href=""http://k.youku.com([\w\-\.,@?^=%&amp;:/~\+#]*[\w\-\@?^=%&amp;/~\+#])?"), //获取视频下载链接
-            });
-            //初始化多任务列表集合
-            _BgWorkerDict = new Dictionary<string, BackgroundWorker>();
-            _ManualRestDict = new Dictionary<string,ManualResetEvent>();
+            try {
+                t.Elapsed += t_Elapsed;
+                t.AutoReset = true;
+                t.Enabled = true;
+                _DownloadDic = new Dictionary<string, DownloadViewModel>();
+                _DownloadSoureDic = new Dictionary<VideoSourceType, IList<UrlCategoryViewModel>>();
+
+                //添加优酷视频下载地址
+                //_DownloadSoureDic.Add(VideoSourceType.Youku, new List<UrlCategoryViewModel> {
+                //    new UrlCategoryViewModel{ Category=CategoryType.fun, UrlCategory="http://fun.youku.com/" },
+                //    new UrlCategoryViewModel{ Category=CategoryType.fun, UrlCategory="http://dv.youku.com/" }
+                //});
+                lblInfo.Text = "初始化下载地址";
+                string _downloadSourceStr = Log.ReadAllFile("SourceVideos.json");
+                if (string.IsNullOrEmpty(_downloadSourceStr)) {
+                    lblInfo.Text = "未找到下载视频地址";
+                    return;
+                }
+                _DownloadSoureDic = JsonConvert.DeserializeObject<Dictionary<VideoSourceType, IList<UrlCategoryViewModel>>>(_downloadSourceStr);
+
+                //初始化已经下载的视频地址 避免重复下载
+                lblInfo.Text = "初始化已下载视频地址";
+                _AllDownloadDic = new Dictionary<string, DownloadViewModel>();
+                foreach (string _allDownloadSourceStr in File.ReadLines("DownloadVideos.json")) {
+                    var dic=JsonConvert.DeserializeObject<Dictionary<string, DownloadViewModel>>(_allDownloadSourceStr);
+                    foreach (var item in dic)
+	                 {
+                         if (!_AllDownloadDic.ContainsKey(item.Key)) {
+                             _AllDownloadDic.Add(item.Key,item.Value);
+                         }
+	                 }
+                }
+
+                _RegexDic = new Dictionary<VideoSourceType, IList<Regex>>();
+                _RegexDic.Add(VideoSourceType.Youku, new List<Regex>() {
+                   new Regex(@"<a[^>]*href=[""']http://v.youku.com(?<url>[^""']*?)[""'][^>]*></a>"),//获取优酷页面中视频链接 1
+                   new Regex(@"<a[^>]*href=[""']http://v.youku.com(?<url>[^""']*?)[""'][^>]*>[\w][^<][^\b&nbsp;]+</a>"),//获取优酷页面中视频链接 2
+                   new Regex(@"http://([\w\-\.,@?^=%&amp;:/~\+#]*[\w\-\.,@?^=%&amp;:/~\+#])?"), //a标签中的获取url
+                   new Regex(@""">[\w\W]+"), //a标签中获取视频名称 1 如：<a>我是一只小小鸟</a>
+                   new Regex(@"href=""http://k.youku.com([\w\-\.,@?^=%&amp;:/~\+#]*[\w\-\@?^=%&amp;/~\+#])?"), //获取视频下载链接
+                });
+
+
+                //初始化多任务列表集合
+                _BgWorkerDict = new Dictionary<string, BackgroundWorker>();
+                _ManualRestDict = new Dictionary<string, ManualResetEvent>();
+                lblInfo.Text = "初始化数据完成";
+
+            }
+            catch (Exception ex) {
+                lblInfo.Text = "出现错误："+ex.Message;
+                Log.WriteErrorLog(ex.Message);
+            }
+        }
+
+        void t_Elapsed(object sender, ElapsedEventArgs e) {
+            if (IsAutoDownload) {
+                ExeDownload();
+            }
         }
         
         #endregion
@@ -94,7 +139,8 @@ namespace DownloadVideo {
                                             urlSource=rxUrl.Match(a).Value.Trim();
                                             if (string.IsNullOrEmpty(title)) { continue; }
                                             if(string.IsNullOrEmpty(urlSource)) {continue;}
-                                            if (!_DownloadDic.ContainsKey(title) ) {
+                                            //if (_AllDownloadDic.Count > 4) continue; //暂时只取十条
+                                            if (!_AllDownloadDic.ContainsKey(title) ) {
                                                 DownloadViewModel model = new DownloadViewModel() {
                                                     Guid = Guid.NewGuid().ToString(),
                                                     Title=title,
@@ -105,6 +151,7 @@ namespace DownloadVideo {
                                                     CreatedTime = DateTime.Now,
                                                 };
                                                 _DownloadDic.Add(title, model);
+                                                _AllDownloadDic.Add(title, model);
                                             }
                                         }
                                     }
@@ -148,24 +195,30 @@ namespace DownloadVideo {
         }
         #endregion
         #region 3、下载视频
-        public void DownloadVideo() {
-            //清空多线程任务列表数据
-            //_BgWorkerDict.Clear();
-            //_ManualRestDict.Clear();
-            //转为后台多线程任务
-            this.Invoke((MethodInvoker)delegate{
+        /// <summary>
+        /// 更新进度条
+        /// </summary>
+        private void UpdateProgress() {
+            this.Invoke((MethodInvoker)delegate {
                 int hasDownloadCount = (from u in _DownloadDic
                                         where u.Value.Status == DownloadStatus.Downloaded
                                         select u).Count();
                 this.progressBarDownload.Maximum = _DownloadDic.Count;
                 this.progressBarDownload.Value = hasDownloadCount;
                 this.lblProgress.Text = hasDownloadCount + "/" + _DownloadDic.Count;
+                //this.lblInfo.Text = string.Format("已下载视频数量:{0}",hasDownloadCount);
             });
+        }
+        public void DownloadVideo() {
+            //清空多线程任务列表数据
+            //_BgWorkerDict.Clear();
+            //_ManualRestDict.Clear();
+            //转为后台多线程任务
             while (_BgWorkerDict.Count <= 5) {
                 var model = (from u in _DownloadDic
                             let down = u.Value.Status
                             where down == DownloadStatus.PreDownload
-                            select u.Value).First();
+                            select u.Value).FirstOrDefault();
                 if (model != null) {
                     if (_BgWorkerDict.ContainsKey(model.Title)) {
                         continue;
@@ -181,7 +234,9 @@ namespace DownloadVideo {
                     
                     model.Status = DownloadStatus.Downloading;
                     ManualResetEvent mre = new ManualResetEvent(true);
-                    _ManualRestDict.Add(model.Title, mre);
+                    if (!_ManualRestDict.ContainsKey(model.Title)) {
+                        _ManualRestDict.Add(model.Title, mre);
+                    }
                     bg.RunWorkerAsync(model);
                 }
                 else {
@@ -196,15 +251,31 @@ namespace DownloadVideo {
             if (_BgWorkerDict.ContainsKey(key)) {
                 _BgWorkerDict.Remove(key);
             }
+            if (!_ManualRestDict.ContainsKey(key)) {
+                _ManualRestDict.Remove(key);
+            }
             if (_DownloadDic.ContainsKey(key)) {
                 var model = _DownloadDic[key];
                 model.Status = DownloadStatus.Downloaded;
             }
-            int surplusCount = (from u in _DownloadDic
-                               where u.Value.Status == DownloadStatus.PreDownload
+            UpdateProgress();//更新进度条
+            int downloadedCount = (from u in _DownloadDic
+                               where u.Value.Status == DownloadStatus.Downloaded
                                select u.Key).Count();
-            if (surplusCount > 0) {
-                DownloadVideo();
+            int surplusCount=(from u in _DownloadDic where u.Value.Status==DownloadStatus.PreDownload select u.Key).Count();
+            if (downloadedCount < _DownloadDic.Count) {
+                if(surplusCount>0){
+                   DownloadVideo();
+                }
+            }
+            else {
+                this.Invoke((MethodInvoker)delegate{
+                    lblInfo.Text = "本次下载完成";
+                });
+                //写入到文件
+                string json = JsonConvert.SerializeObject(_DownloadDic);
+                Log.WriteLog(json,"DownloadVideos.json");
+                _DownloadDic.Clear(); //清除本次下载数据，以防继续下载
             }
         }
 
@@ -216,7 +287,6 @@ namespace DownloadVideo {
                     string file = string.Format(@"{0}\{1}.flv", _DownloadPath, model.Title);
                     //client.DownloadFileAsync(new Uri(model.UrlDownloadList[0]), file);
                     //client.DownloadDataCompleted += client_DownloadFileCompleted;
-                   
                     client.DownloadFile(new Uri(model.UrlDownloadList[0]), file);
                 }
             }
@@ -259,11 +329,33 @@ namespace DownloadVideo {
         }
 
         private void BtnAuto_Click(object sender, EventArgs e) {
-            CreateDownloadDirectory();
-            GetVideoList();
-            Task t =  ConvertToVideoUrl();
+            IsAutoDownload = true;
+            ExeDownload();
+        }
+
+        private void ExeDownload() {
+            this.Invoke((MethodInvoker)delegate {
+                lblInfo.Text = "创建下载路径";
+                CreateDownloadDirectory();
+                lblInfo.Text = "开始获取下载视频地址";
+                GetVideoList();
+                lblInfo.Text = "开始解析视频地址到真实下载地址";
+                if (_DownloadDic.Count == 0) {
+                    lblInfo.Text = "没有要下载的视频";
+                    return;
+                }
+            });
+          
+            Task t = ConvertToVideoUrl();
             t.ContinueWith((task) => {
                 if (task.Status == TaskStatus.RanToCompletion) {
+                    this.Invoke((MethodInvoker)delegate {
+                        lblInfo.Text = "开始下载视频";
+                    });
+                 
+                    
+                    UpdateProgress();//更新进度条
+
                     DownloadVideo();
                 }
             });

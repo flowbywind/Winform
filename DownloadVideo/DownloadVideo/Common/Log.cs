@@ -8,16 +8,15 @@ using System.Threading.Tasks;
 namespace DownloadVideo.Common {
      public  class Log {
 
-        private const string _baseDirectory = @"d:\tmp\";
+        private const string _baseDirectory = @"";
         /// <summary>
         /// 记录错误日志
         /// </summary>
         /// <param name="msg"></param>
         public static void WriteErrorLog(string msg) {
             string path = _baseDirectory+"errorLog.txt";
-            using (StreamWriter sw = File.CreateText(path)) {
-                sw.WriteLine(msg);
-            }
+            File.AppendAllLines(path, new string[]{msg});
+
         }
         /// <summary>
         /// 记录日志
@@ -26,16 +25,7 @@ namespace DownloadVideo.Common {
         /// <param name="logName"></param>
         public static void WriteLog(List<string> listStr, string logName) {
             string path = _baseDirectory + logName;
-            if (!File.Exists(path)) {
-                using (FileStream fs = File.Create(path)) {
-                   
-                }
-            }
-            using (StreamWriter sw = File.AppendText(path)) {
-                foreach (string str in listStr) {
-                    sw.WriteLine(str);
-                }
-            }
+            File.AppendAllLines(path, listStr);
         }
         /// <summary>
         /// 写入日志文件
@@ -44,9 +34,8 @@ namespace DownloadVideo.Common {
         /// <param name="logName">文件名</param>
         public static void WriteLog(string content, string logName) {
             string path = _baseDirectory + logName;
-            using (StreamWriter sw = File.CreateText(path)) {
-                sw.WriteLine(content);
-            }
+            File.AppendAllLines(path, new string[]{content});
+
         }
         /// <summary>
         /// 读取文件
@@ -71,6 +60,18 @@ namespace DownloadVideo.Common {
             if (File.Exists(filePath)) {
                 File.Delete(filePath);
             }
+        }
+         /// <summary>
+         /// 读取整个文件
+         /// </summary>
+         /// <param name="logName"></param>
+         /// <returns></returns>
+        public static string ReadAllFile(string logName) {
+            string path = logName;
+            if (File.Exists(path)) {
+              return  File.ReadAllText(path);
+            }
+            return "";
         }
     }
 }

@@ -38,6 +38,8 @@
             this.progressBarDownload = new System.Windows.Forms.ProgressBar();
             this.lblProgress = new System.Windows.Forms.Label();
             this.BtnControl = new System.Windows.Forms.Button();
+            this.label1 = new System.Windows.Forms.Label();
+            this.lblInfo = new System.Windows.Forms.Label();
             this.SuspendLayout();
             // 
             // BtnDownload
@@ -87,7 +89,7 @@
             // 
             // BtnAuto
             // 
-            this.BtnAuto.Location = new System.Drawing.Point(485, 10);
+            this.BtnAuto.Location = new System.Drawing.Point(28, 286);
             this.BtnAuto.Name = "BtnAuto";
             this.BtnAuto.Size = new System.Drawing.Size(75, 23);
             this.BtnAuto.TabIndex = 5;
@@ -97,7 +99,7 @@
             // 
             // progressBarDownload
             // 
-            this.progressBarDownload.Location = new System.Drawing.Point(485, 66);
+            this.progressBarDownload.Location = new System.Drawing.Point(28, 342);
             this.progressBarDownload.Name = "progressBarDownload";
             this.progressBarDownload.Size = new System.Drawing.Size(394, 23);
             this.progressBarDownload.TabIndex = 6;
@@ -106,14 +108,14 @@
             // 
             this.lblProgress.AutoSize = true;
             this.lblProgress.ForeColor = System.Drawing.Color.Chocolate;
-            this.lblProgress.Location = new System.Drawing.Point(827, 107);
+            this.lblProgress.Location = new System.Drawing.Point(370, 383);
             this.lblProgress.Name = "lblProgress";
             this.lblProgress.Size = new System.Drawing.Size(0, 12);
             this.lblProgress.TabIndex = 7;
             // 
             // BtnControl
             // 
-            this.BtnControl.Location = new System.Drawing.Point(596, 9);
+            this.BtnControl.Location = new System.Drawing.Point(139, 285);
             this.BtnControl.Name = "BtnControl";
             this.BtnControl.Size = new System.Drawing.Size(75, 23);
             this.BtnControl.TabIndex = 8;
@@ -121,11 +123,33 @@
             this.BtnControl.UseVisualStyleBackColor = true;
             this.BtnControl.Click += new System.EventHandler(this.BtnControl_Click);
             // 
+            // label1
+            // 
+            this.label1.AutoSize = true;
+            this.label1.ForeColor = System.Drawing.Color.DarkCyan;
+            this.label1.Location = new System.Drawing.Point(28, 324);
+            this.label1.Name = "label1";
+            this.label1.Size = new System.Drawing.Size(53, 12);
+            this.label1.TabIndex = 9;
+            this.label1.Text = "运行信息";
+            // 
+            // lblInfo
+            // 
+            this.lblInfo.AutoSize = true;
+            this.lblInfo.ForeColor = System.Drawing.Color.SeaGreen;
+            this.lblInfo.Location = new System.Drawing.Point(87, 324);
+            this.lblInfo.Name = "lblInfo";
+            this.lblInfo.Size = new System.Drawing.Size(65, 12);
+            this.lblInfo.TabIndex = 10;
+            this.lblInfo.Text = "初始化数据";
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(927, 425);
+            this.ClientSize = new System.Drawing.Size(478, 425);
+            this.Controls.Add(this.lblInfo);
+            this.Controls.Add(this.label1);
             this.Controls.Add(this.BtnControl);
             this.Controls.Add(this.lblProgress);
             this.Controls.Add(this.progressBarDownload);
@@ -136,7 +160,7 @@
             this.Controls.Add(this.TxtVideoUrl);
             this.Controls.Add(this.BtnDownload);
             this.Name = "Form1";
-            this.Text = "Form1";
+            this.Text = "自动下载视频";
             this.Load += new System.EventHandler(this.Form1_Load);
             this.ResumeLayout(false);
             this.PerformLayout();
@@ -155,6 +179,8 @@
         private System.Windows.Forms.ProgressBar progressBarDownload;
         private System.Windows.Forms.Label lblProgress;
         private System.Windows.Forms.Button BtnControl;
+        private System.Windows.Forms.Label label1;
+        private System.Windows.Forms.Label lblInfo;
     }
 }
 
