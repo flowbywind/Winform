@@ -36,6 +36,7 @@ namespace DownloadVideo {
         private string _DownloadPath=string.Empty;
         private System.Timers.Timer t = new System.Timers.Timer(43200000); //12h执行一次4320000
         private bool IsAutoDownload;
+        private int _DownloadCount;
         #region 轮询程序 
         /// <summary>
         /// 初始化数据
@@ -203,9 +204,9 @@ namespace DownloadVideo {
                 int hasDownloadCount = (from u in _DownloadDic
                                         where u.Value.Status == DownloadStatus.Downloaded
                                         select u).Count();
-                this.progressBarDownload.Maximum = _DownloadDic.Count;
+                this.progressBarDownload.Maximum = _DownloadCount;
                 this.progressBarDownload.Value = hasDownloadCount;
-                this.lblProgress.Text = hasDownloadCount + "/" + _DownloadDic.Count;
+                this.lblProgress.Text = hasDownloadCount + "/" + _DownloadCount;
                 //this.lblInfo.Text = string.Format("已下载视频数量:{0}",hasDownloadCount);
             });
         }
@@ -242,7 +243,6 @@ namespace DownloadVideo {
                 else {
                     break;
                 }
-
             }
         }
 
@@ -257,6 +257,12 @@ namespace DownloadVideo {
             if (_DownloadDic.ContainsKey(key)) {
                 var model = _DownloadDic[key];
                 model.Status = DownloadStatus.Downloaded;
+
+                //成功下载一个文件 保存一次 保存到json文件
+                var onedic=_DownloadDic.Where(a=>a.Key==key);
+                string json = JsonConvert.SerializeObject(onedic);
+                Log.WriteLog(json, "DownloadVideos.json");
+                _DownloadDic.Remove(key);
             }
             UpdateProgress();//更新进度条
             int downloadedCount = (from u in _DownloadDic
@@ -272,10 +278,6 @@ namespace DownloadVideo {
                 this.Invoke((MethodInvoker)delegate{
                     lblInfo.Text = "本次下载完成";
                 });
-                //写入到文件
-                string json = JsonConvert.SerializeObject(_DownloadDic);
-                Log.WriteLog(json,"DownloadVideos.json");
-                _DownloadDic.Clear(); //清除本次下载数据，以防继续下载
             }
         }
 
@@ -352,8 +354,8 @@ namespace DownloadVideo {
                     this.Invoke((MethodInvoker)delegate {
                         lblInfo.Text = "开始下载视频";
                     });
-                 
-                    
+
+                    _DownloadCount = _DownloadDic.Count;
                     UpdateProgress();//更新进度条
 
                     DownloadVideo();
